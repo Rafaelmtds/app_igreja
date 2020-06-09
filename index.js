@@ -8,6 +8,7 @@ const app = express();
 app.use(cors());
 //Mostra que as requisições do body serão em json
 app.use(express.json());
+app.use(express.urlencoded({extended:true}));
 app.use(routes);
 
 
