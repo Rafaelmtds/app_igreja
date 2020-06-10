@@ -101,7 +101,7 @@ module.exports = {
       
 
     },
-    async mostrarLivros(req,res){
+    async listarTodosLivros(req,res){   
         let livros = null;
         try {
             livros = await database.select("Select * from livro inner join usuario on livro.id_usuario = usuario.id");
@@ -125,6 +125,35 @@ module.exports = {
         } else {
             return res.status(204).json({menssagem:"Sem livros disponiveis"})
         }
-    }
+    },
+    async livrosUsuario(req,res){
+        const { id_usuario} = req.params;
+        let lista_livros = null;
+        try {
+            lista_livros = await database.select("Select * from livro inner join usuario on livro.id_usuario = usuario.id where id_usuario = ?", id_usuario);
+            console.log(lista_livros);
+        } catch (error) {
+            console.log(error);
+            
+        }
+
+        const lista_final = lista_livros.map((livro) =>{
+            let item ={
+                titulo: livro.titulo,
+                autor: livro.autor,
+                ano: livro.ano,
+                categoria: livro.categoria,
+                quantidade_pag: livro.quantidade_pag,
+                descricao: livro.descricao,
+                dono: livro.nome
+            }
+            return item
+        }); 
+        if (lista_final.length > 0) {
+            return res.status(200).json({lista_final})
+        } else {
+            return res.status(204).json({menssagem:"Sem livros disponiveis"})
+        }
+    },
 
 }

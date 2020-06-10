@@ -48,7 +48,7 @@ module.exports = {
             
             senha: senhaCriptografada,
             nascimento: nascimento,
-            tipo: "adm",
+            autorizacao: "adm",
         };
         let resultado = null;
         try {

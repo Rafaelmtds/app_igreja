@@ -35,7 +35,7 @@ module.exports = {
       email     : email,
       senha     : senhaCriptografada,
       nascimento: nascimento,
-      tipo      : "user",
+      autorizacao      : "user",
     };
     const telefone ={
       tipo :tipo,
@@ -117,5 +117,31 @@ module.exports = {
       return res.status(400).send();
     }
   },
-  async 
+  async listarUsuarios(req,res){
+    let usuarios = null;
+    try {
+      usuarios = await database.select("Select * from usuario  inner join telefone on usuario.id = telefone.id_usuario ");
+    } catch (error) {//na próxima att adicionar a quantidade de livros nos usuarios
+        console.log(error);
+    }
+    console.log(usuarios);
+    
+
+    const lista_usuarios = usuarios.map((usuario) =>{
+        let user ={
+          nome: usuario.nome,
+          contato:usuario.numero,
+          tipo: usuario.autorizacao
+        }
+        return user
+    });              
+    if (lista_usuarios.length > 0) {
+        return res.status(200).json({lista_usuarios})
+    } else {
+        return res.status(204).json({menssagem:"Sem livros disponiveis"})
+    }
+  },
+  async mostrarUsuario(req,res){
+    
+  }
 };
