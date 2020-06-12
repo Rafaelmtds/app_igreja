@@ -1,5 +1,17 @@
 const database = require("../../../helpers/db/database");
-
+const nodemailer = require('nodemailer');
+const { select } = require("../../../helpers/db/database");
+// //Configuração para envio de Notificação
+let transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true for 465, false for other ports
+    auth:{
+        user:"colegiotaua2201@gmail.com",
+        pass:"Colegiot@u@",
+    },
+});
+            
 
 module.exports = {
 
@@ -85,6 +97,7 @@ module.exports = {
     async removerLivro(req,res){
         const { id_livro } = req.params;
         console.log(id_livro);
+        const id_dono = req.headers.authorization;
 
         let resultado = null;
         try {
@@ -104,24 +117,13 @@ module.exports = {
     async listarTodosLivros(req,res){   
         let livros = null;
         try {
-            livros = await database.select("Select * from livro inner join usuario on livro.id_usuario = usuario.id");
+            livros = await database.select("Select titulo, descricao, ano, quantidade_pag, autor, categoria, nome  from livro inner join usuario on livro.id_usuario = usuario.id");
         } catch (error) {
             console.log(error);
         }
-        const lista_livros = livros.map((livro) =>{
-            let item ={
-                titulo: livro.titulo,
-                autor: livro.autor,
-                ano: livro.ano,
-                categoria: livro.categoria,
-                quantidade_pag: livro.quantidade_pag,
-                descricao: livro.descricao,
-                dono: livro.nome
-            }
-            return item
-        });              
+            
         if (livros.length > 0) {
-            return res.status(200).json({lista_livros})
+            return res.status(200).json({livros})
         } else {
             return res.status(204).json({menssagem:"Sem livros disponiveis"})
         }
@@ -130,30 +132,94 @@ module.exports = {
         const { id_usuario} = req.params;
         let lista_livros = null;
         try {
-            lista_livros = await database.select("Select * from livro inner join usuario on livro.id_usuario = usuario.id where id_usuario = ?", id_usuario);
+            lista_livros = await database.select("Select titulo,autor,ano,categoria,quantidade_pag,descricao,nome from livro inner join usuario on livro.id_usuario = usuario.id where id_usuario = ?", id_usuario);
             console.log(lista_livros);
         } catch (error) {
             console.log(error);
             
         }
-
-        const lista_final = lista_livros.map((livro) =>{
-            let item ={
-                titulo: livro.titulo,
-                autor: livro.autor,
-                ano: livro.ano,
-                categoria: livro.categoria,
-                quantidade_pag: livro.quantidade_pag,
-                descricao: livro.descricao,
-                dono: livro.nome
-            }
-            return item
-        }); 
-        if (lista_final.length > 0) {
-            return res.status(200).json({lista_final})
+        if (lista_livros.length > 0) {
+            return res.status(200).json({lista_livros})
         } else {
             return res.status(204).json({menssagem:"Sem livros disponiveis"})
         }
     },
+    async pedirEmprestado(req,res){
+        const {id_livro, titulo, id_requerente,id_dono} = req.body;
+        let pedido ={
+            data : new Date().toJSON().slice(0, 19).replace('T', ' '),
+            id_requerente : id_requerente,
+            id_dono : id_dono,
+            status : "Em analise",
+            id_livro : id_livro
+        }
+
+        try {
+          let  usuarios = await database.select('Select * from usuario  inner join telefone on usuario.id = telefone.id_usuario where usuario.id= ? or usuario.id = ?',[id_dono,id_requerente] );
+             
+            //Checar se o livro ja esta emprestado ou em analise
+            let confirmacao = await database.select('Select * from pedido where id_livro = ?', id_livro);
+            
+            if(confirmacao.length > 0){
+                return res.status(400).json({menssagem: "O livro não esta disponivel"})
+                
+            }
+
+            let emprestimo = await database.insert('Insert into pedido set ?',pedido );
+            console.log(emprestimo);
+
+            let envio = await transporter.sendMail({
+                from:`${usuarios[1].nome} <${usuarios[1].email}>`,
+                to: `${usuarios[0].email}`,
+                subject: `Pedido de Emprestimo do livro ${titulo} para o usuario ${usuarios[1].nome}`,
+                text:`Olá gostaria de saber poderia pedir seu livro ${titulo} emprestado?
+                Contato : ${usuarios[1].numero}`,
+            })
+            console.log(envio);
+
+            return res.status(200).json({menssagem: "O pedido foi enviado e esta em análise"})
+        } catch (error) {
+            console.log(error);
+            
+            
+
+        } 
+        
+    },
+    async emprestarLivro(req,res){
+        const { id_livro } = req.params;
+        const {titulo} = req.body;
+        const id_dono = req.headers.authorization;
+
+        try {
+            let emprestimo = await database.select('Select * from pedido where id_livro = ?', id_livro);
+
+            if(emprestimo[0].id_dono != id_dono){
+                return res.status(401).json({menssagem: "Voce não tem permissão para efetuar esta ação"});
+            }
+
+            let  usuarios = await database.select('Select * from usuario  inner join telefone on usuario.id = telefone.id_usuario where usuario.id= ? or usuario.id = ?',[emprestimo[0].id_dono,emprestimo[0].id_requerente] );
+
+            
+            await database.update('Update pedido set status = ? where id_livro = ? ',["Aprovado", id_livro] );
+
+            let envio = await transporter.sendMail({
+                from:`${usuarios[0].nome} <${usuarios[0].email}>`,
+                to: `${usuarios[0].email}`,
+                subject: `Aprovação do pedido de emprestimo`,
+                text:`O dono do livro ${titulo} permitiu o emprestimo, entre em contato com o mesmo para marcar um local de entrega.
+                Recomendamos que seja em um local público.`,
+            })
+
+            return res.status(200).json({menssagem: "Livro autorizado para emprestimo, entre em contato com o usuario"})
+        } catch (error) {
+            console.log(error);
+            
+            
+
+        } 
+        
+    },
+
 
 }
