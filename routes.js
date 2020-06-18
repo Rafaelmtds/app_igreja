@@ -28,8 +28,12 @@ routes.post('/api/livro/editar', livroController.editarLivro);
 routes.delete('/api/livro/remover:id_livro', livroController.removerLivro);
 routes.get('/api/livro/mostrarLivros', livroController.listarTodosLivros);
 routes.get('/api/livro/mostrarLivros/usuario:id_usuario',livroController.livrosUsuario);
-routes.post('/api/livro/pedirEmprestado', livroController.pedirEmprestado)
-routes.post('/api/livro/emprestar:id_livro', livroController.emprestarLivro)
+routes.post('/api/livro/pedirEmprestado', livroController.pedirEmprestado);
+routes.post('/api/livro/emprestar:id_livro', livroController.emprestarLivro);
+routes.post('/api/livro/devolver:id_livro', livroController.devolverLivro);
+routes.post('/api/livro/confirmarDevolucao:id_livro', livroController.confirmarDevolucao);
+
+
 
 
 module.exports = routes;
